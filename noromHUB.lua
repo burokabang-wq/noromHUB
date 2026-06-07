@@ -725,15 +725,94 @@ end
 -- ══════════════════════════════════════════════════════════════
 -- CORE ACTIONS
 -- ══════════════════════════════════════════════════════════════
+-- Kick Power Bypass: Modify KickData and KickServiceClient for max distance
+local _kickDataModule = nil
+local _kickController = nil
+local _kickServiceClient = nil
+local _origKickData = {}
+local _kickPowerActive = false
+
+local function ActivateKickPower()
+    if _kickPowerActive then return end
+    pcall(function()
+        -- Find and modify KickData module
+        for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+            if v:IsA("ModuleScript") and v.Name == "KickData" then
+                local data = require(v)
+                if data then
+                    _kickDataModule = data
+                    _origKickData.BASE_DISTANCE = data.BASE_DISTANCE
+                    _origKickData.DISTANCE_INCREMENT = data.DISTANCE_INCREMENT
+                    _origKickData.MAX_DISTANCE = data.MAX_DISTANCE
+                    _origKickData.GetDistanceFromLevel = data.GetDistanceFromLevel
+                    -- Set to max distance
+                    data.BASE_DISTANCE = 5800
+                    data.DISTANCE_INCREMENT = 0
+                    data.GetDistanceFromLevel = function() return 5800 end
+                    print("[noromHUB] KickData modified: BASE_DISTANCE = 5800")
+                end
+                break
+            end
+        end
+        -- Find and modify KickServiceClient
+        for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+            if v:IsA("ModuleScript") and v.Name == "KickServiceClient" then
+                local data = require(v)
+                if data then
+                    _kickServiceClient = data
+                    data.Level = 99999
+                    data.Percent = 1
+                    print("[noromHUB] KickServiceClient.Level = 99999")
+                end
+                break
+            end
+        end
+        -- Find and modify KickController Scale
+        for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+            if v:IsA("ModuleScript") and v.Name == "KickController" then
+                local data = require(v)
+                if data then
+                    _kickController = data
+                    data.Scale = 1
+                    print("[noromHUB] KickController.Scale = 1")
+                end
+                break
+            end
+        end
+    end)
+    _kickPowerActive = true
+end
+
+local function DeactivateKickPower()
+    if not _kickPowerActive then return end
+    pcall(function()
+        if _kickDataModule then
+            _kickDataModule.BASE_DISTANCE = _origKickData.BASE_DISTANCE or 75
+            _kickDataModule.DISTANCE_INCREMENT = _origKickData.DISTANCE_INCREMENT or 1
+            if _origKickData.GetDistanceFromLevel then
+                _kickDataModule.GetDistanceFromLevel = _origKickData.GetDistanceFromLevel
+            end
+        end
+        if _kickServiceClient then
+            _kickServiceClient.Level = 10
+            _kickServiceClient.Percent = 1
+        end
+        if _kickController then
+            _kickController.Scale = 0.939
+        end
+    end)
+    _kickPowerActive = false
+end
+
 local function DoKick()
     pcall(function()
         if R.Kick then
+            -- Activate kick power bypass when Smart Farm is active
+            if S.Active then
+                ActivateKickPower()
+            end
             local acc = 0.98
             local pwr = (S.KickPower or 100) / 100
-            -- When Smart Farm is active, spoof kick power to 50B for maximum distance
-            if S.Active then
-                pwr = 50000000000 -- 50B power bypass
-            end
             R.Kick:FireServer(acc, pwr)
         end
     end)
