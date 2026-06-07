@@ -730,6 +730,10 @@ local function DoKick()
         if R.Kick then
             local acc = 0.98
             local pwr = (S.KickPower or 100) / 100
+            -- When Smart Farm is active, spoof kick power to 50B for maximum distance
+            if S.Active then
+                pwr = 50000000000 -- 50B power bypass
+            end
             R.Kick:FireServer(acc, pwr)
         end
     end)
